@@ -23,12 +23,12 @@ def main(args):
     # Note: No normalization applied, since RealNVP expects inputs in (0, 1).
     transform_train = transforms.Compose([
         transforms.RandomHorizontalFlip(),
-        #transforms.Grayscale(num_output_channels=3),
+        transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
 
     transform_test = transforms.Compose([
-        #transforms.Grayscale(num_output_channels=3),
+        transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
 
@@ -50,7 +50,7 @@ def main(args):
 
     # Model
     print('Building model..')
-    net = RealNVP(num_scales=2, in_channels=1, mid_channels=64, num_blocks=8)
+    net = RealNVP(num_scales=2, in_channels=3, mid_channels=64, num_blocks=8)
     net = net.to(device)
     if device == 'cuda':
         net = torch.nn.DataParallel(net, args.gpu_ids)
