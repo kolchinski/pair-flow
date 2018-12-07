@@ -40,9 +40,11 @@ def main(args):
     #testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
     trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
+    trainset = data.dataset.Subset(trainset, range(1000))
     trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
     testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
+    testset = data.dataset.Subset(test, range(1000, 1100))
     testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
 
