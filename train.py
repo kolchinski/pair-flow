@@ -23,22 +23,32 @@ def main(args):
     # Note: No normalization applied, since RealNVP expects inputs in (0, 1).
     transform_train = transforms.Compose([
         transforms.RandomHorizontalFlip(),
+        #transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
 
     transform_test = transforms.Compose([
+        #transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
 
-    trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform_train)
+
+    #trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform_train)
+    #trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+
+    #testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform_test)
+    #testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+
+    trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
     trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
-    testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform_test)
+    testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
     testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+
 
     # Model
     print('Building model..')
-    net = RealNVP(num_scales=2, in_channels=3, mid_channels=64, num_blocks=8)
+    net = RealNVP(num_scales=2, in_channels=1, mid_channels=64, num_blocks=8)
     net = net.to(device)
     if device == 'cuda':
         net = torch.nn.DataParallel(net, args.gpu_ids)
