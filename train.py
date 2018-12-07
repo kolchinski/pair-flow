@@ -44,7 +44,7 @@ def main(args):
     trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
     testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
-    testset = data.dataset.Subset(test, range(128, 138))
+    testset = data.dataset.Subset(testset, range(128, 138))
     testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
 
