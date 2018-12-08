@@ -22,40 +22,46 @@ def main(args):
 
     # Note: No normalization applied, since RealNVP expects inputs in (0, 1).
     transform_train = transforms.Compose([
-        transforms.RandomHorizontalFlip(),
-        #transforms.Grayscale(num_output_channels=3),
+        #transforms.RandomHorizontalFlip(),
+        transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
+    #if args.overfit: transform_train = [transforms.ColorJitter()] + transform_train
 
     transform_test = transforms.Compose([
-        #transforms.Grayscale(num_output_channels=3),
+        transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
+    #if args.overfit: transform_test = [transforms.ColorJitter()] + transform_test
 
-    trainset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_train)
+
+    if args.dataset == 'MNIST':
+        trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
+        testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
+
+    elif args.dataset == 'SVHN':
+        trainset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_train)
+        testset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_test)
+
+    elif args.dataset == 'CIFAR10':
+        trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform_train)
+        testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform_test)
+
+    else:
+        raise Exception("Invalid dataset name")
+
+    if args.overfit:
+        trainset = data.dataset.Subset(trainset, range(128))
+        testset = data.dataset.Subset(testset, range(128))
+
+
     trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
-
-    testset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_test)
     testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
-
-    #trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform_train)
-    #trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
-
-    #testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform_test)
-    #testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
-
-    #trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
-    #trainset = data.dataset.Subset(trainset, range(128))
-    #trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
-
-    #testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
-    #testset = data.dataset.Subset(testset, range(128, 138))
-    #testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
 
     # Model
     print('Building model..')
-    net = RealNVP(num_scales=2, in_channels=3, mid_channels=64, num_blocks=8)
+    net = RealNVP(num_scales=args.num_scales, in_channels=3, mid_channels=64, num_blocks=args.num_blocks)
     net = net.to(device)
     if device == 'cuda':
         net = torch.nn.DataParallel(net, args.gpu_ids)
@@ -90,6 +96,7 @@ def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm):
             optimizer.zero_grad()
             z, sldj = net(x, reverse=False)
             loss = loss_fn(z, sldj)
+            print("Train loss: {}".format(loss))
             loss_meter.update(loss.item(), x.size(0))
             loss.backward()
             util.clip_grad_norm(optimizer, max_grad_norm)
@@ -125,6 +132,7 @@ def test(epoch, net, testloader, device, loss_fn, num_samples):
                 x = x.to(device)
                 z, sldj = net(x)
                 loss = loss_fn(z, sldj)
+                print("Test loss: {}".format(loss))
                 loss_meter.update(loss.item(), x.size(0))
                 progress_bar.set_postfix(loss=loss_meter.avg,
                                          bpd=util.bits_per_dim(x, loss_meter.avg))
@@ -152,18 +160,27 @@ def test(epoch, net, testloader, device, loss_fn, num_samples):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='RealNVP on CIFAR-10')
 
+    #args for overfit/not, #scales/maybe other architecture stuff
+    #arg for dataset
+
+    parser.add_argument('--overfit', action='store_true', help='Only use one wiggled data point for overfit test')
+    parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
+    parser.add_argument('--num_scales', default=3, type=int, help='Number of scales for model architecture')
+    parser.add_argument('--num_blocks', default=8, type=int, help='Number of residual blocks')
+
+
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--benchmark', action='store_true', help='Turn on CUDNN benchmarking')
     parser.add_argument('--gpu_ids', default='[0]', type=eval, help='IDs of GPUs to use')
     parser.add_argument('--lr', default=1e-3, type=float, help='Learning rate')
     parser.add_argument('--max_grad_norm', type=float, default=100., help='Max gradient norm for clipping')
-    parser.add_argument('--num_epochs', default=100, type=int, help='Number of epochs to train')
+    parser.add_argument('--num_epochs', default=10000, type=int, help='Number of epochs to train')
     parser.add_argument('--num_samples', default=64, type=int, help='Number of samples at test time')
     parser.add_argument('--num_workers', default=8, type=int, help='Number of data loader threads')
     parser.add_argument('--resume', '-r', action='store_true', help='Resume from checkpoint')
     parser.add_argument('--weight_decay', default=5e-5, type=float,
                         help='L2 regularization (only applied to the weight norm scale factors)')
 
-    best_loss = 10000 
+    best_loss = 1e20
 
     main(parser.parse_args())
