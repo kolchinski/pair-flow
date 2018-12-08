@@ -164,6 +164,6 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', default=5e-5, type=float,
                         help='L2 regularization (only applied to the weight norm scale factors)')
 
-    best_loss = 0
+    best_loss = 10000 
 
     main(parser.parse_args())
