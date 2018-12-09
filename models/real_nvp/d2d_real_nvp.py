@@ -60,43 +60,45 @@ class D2DRealNVP(RealNVP):
 
     def forward(self, x, reverse=False):
         if reverse:
-            # Reshape z to match dimensions of final latent space
-            x = x
-
             if x.min() < 0 or x.max() > 1:
                 raise ValueError('Expected x in [0, 1], got x with min/max {}/{}'
                                  .format(x.min(), x.max()))
 
-            # TODO: Don't think we need this. Matrix alg can be wrong
-            # while z.size(1) < self.z_channels:
-            #     z = space_to_depth(z, 2)
+            y, sldj = self.pre_process(x)
 
             # Apply inverse flows
-            y = None
+            z_split = None
             for layer in reversed(self.layers):
-                y, x = layer.backward(y, x)
+                y, z_split = layer.backward(y, z_split)
+
+            assert(z_split is None)
+
+            x2 = y
+            assert(x.shape == x2.shape)
+
+            return x2, None
+
+        else:
+            x2 = x
+            # Expect inputs in [0, 1]
+            if x2.min() < 0 or x2.max() > 1:
+                raise ValueError('Expected x2 in [0, 1], got x2 with min/max {}/{}'
+                                 .format(x2.min(), x2.max()))
+
+            # Dequantize and convert to logits
+            y, sldj = self.pre_process(x2)
+
+            # Apply forward flows
+            z_split = None
+            for layer in self.layers:
+                y, sldj, z_split = layer.forward(y, sldj, z_split)
+
+            # This model shouldn't have split layers => z should stay None
+            assert(z_split is None)
 
             x = y
 
-            return x, None
-        else:
-            # Expect inputs in [0, 1]
-            if x.min() < 0 or x.max() > 1:
-                raise ValueError('Expected x in [0, 1], got x with min/max {}/{}'
-                                 .format(x.min(), x.max()))
+            #Shape should stay constant - hourglass architecture image-to-image
+            assert(x.shape == x2.shape)
 
-            # Dequantize and convert to logits
-            y, sldj = self.pre_process(x)
-
-            # Apply forward flows
-            z = None
-            for layer in self.layers:
-                y, sldj, z = layer.forward(y, sldj, z)
-
-            z = torch.cat((z, y), dim=1)
-
-            # Reshape z to match dimensions of input
-            while z.size(1) > self.x_channels:
-                z = depth_to_space(z, 2)
-
-            return z, sldj
+            return x, sldj

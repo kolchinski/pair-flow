@@ -53,7 +53,8 @@ class RealNVP(nn.Module):
 
         self.layers = nn.ModuleList(layers)
 
-    def forward(self, x, reverse=False):
+    # g_sldj - for paired setting only, pass in an initial sldj value
+    def forward(self, x, reverse=False, g_sldj=None):
         if reverse:
             # Reshape z to match dimensions of final latent space
             z = x
@@ -78,6 +79,7 @@ class RealNVP(nn.Module):
 
             # Dequantize and convert to logits
             y, sldj = self.pre_process(x)
+            sldj = sldj + g_sldj
 
             # Apply forward flows
             z = None

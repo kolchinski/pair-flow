@@ -50,8 +50,8 @@ def main(args):
         raise Exception("Invalid dataset name")
 
     if args.overfit:
-        trainset = data.dataset.Subset(trainset, range(128))
-        testset = data.dataset.Subset(testset, range(128))
+        trainset = data.dataset.Subset(trainset, range(12))
+        testset = data.dataset.Subset(testset, range(12))
 
     trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
     testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
