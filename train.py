@@ -80,7 +80,7 @@ def main(args):
 
     for epoch in range(start_epoch, start_epoch + args.num_epochs):
         train(epoch, net, trainloader, device, optimizer, loss_fn, args.max_grad_norm)
-        test(epoch, net, testloader, device, loss_fn, args.num_samples)
+        test(epoch, net, testloader, device, loss_fn, args.num_samples, args.num_epoch_samples)
 
 
 def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm):
@@ -119,7 +119,7 @@ def sample(net, batch_size, device):
     return x
 
 
-def test(epoch, net, testloader, device, loss_fn, num_samples):
+def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples):
     global best_loss
     net.eval()
     loss_meter = util.AverageMeter()
@@ -147,6 +147,7 @@ def test(epoch, net, testloader, device, loss_fn, num_samples):
         torch.save(state, 'ckpts/best.pth.tar')
         best_loss = loss_meter.avg
 
+    if epoch % num_epoch_samples == 0:
         # Save samples and data
         images = sample(net, num_samples, device)
         os.makedirs('samples', exist_ok=True)
@@ -164,6 +165,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
     parser.add_argument('--num_scales', default=3, type=int, help='Number of scales for model architecture')
     parser.add_argument('--num_blocks', default=8, type=int, help='Number of residual blocks')
+    parser.add_argument('--num_epoch_samples', default=1, type=int, help='Sample per num_epoch_samples epochs')
 
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--benchmark', action='store_true', help='Turn on CUDNN benchmarking')
