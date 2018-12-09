@@ -22,18 +22,17 @@ def main(args):
 
     # Note: No normalization applied, since RealNVP expects inputs in (0, 1).
     transform_train = transforms.Compose([
-        #transforms.RandomHorizontalFlip(),
+        # transforms.RandomHorizontalFlip(),
         transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
-    #if args.overfit: transform_train = [transforms.ColorJitter()] + transform_train
+    # if args.overfit: transform_train = [transforms.ColorJitter()] + transform_train
 
     transform_test = transforms.Compose([
         transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
-    #if args.overfit: transform_test = [transforms.ColorJitter()] + transform_test
-
+    # if args.overfit: transform_test = [transforms.ColorJitter()] + transform_test
 
     if args.dataset == 'MNIST':
         trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
@@ -54,10 +53,8 @@ def main(args):
         trainset = data.dataset.Subset(trainset, range(128))
         testset = data.dataset.Subset(testset, range(128))
 
-
     trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
     testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
-
 
     # Model
     print('Building model..')
@@ -150,24 +147,23 @@ def test(epoch, net, testloader, device, loss_fn, num_samples):
         torch.save(state, 'ckpts/best.pth.tar')
         best_loss = loss_meter.avg
 
-    # Save samples and data
-    images = sample(net, num_samples, device)
-    os.makedirs('samples', exist_ok=True)
-    images_concat = torchvision.utils.make_grid(images, nrow=int(num_samples ** 0.5), padding=2, pad_value=255)
-    torchvision.utils.save_image(images_concat, 'samples/epoch_{}.png'.format(epoch))
+        # Save samples and data
+        images = sample(net, num_samples, device)
+        os.makedirs('samples', exist_ok=True)
+        images_concat = torchvision.utils.make_grid(images, nrow=int(num_samples ** 0.5), padding=2, pad_value=255)
+        torchvision.utils.save_image(images_concat, 'samples/epoch_{}.png'.format(epoch))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='RealNVP on CIFAR-10')
 
-    #args for overfit/not, #scales/maybe other architecture stuff
-    #arg for dataset
+    # args for overfit/not, #scales/maybe other architecture stuff
+    # arg for dataset
 
     parser.add_argument('--overfit', action='store_true', help='Only use one wiggled data point for overfit test')
     parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
     parser.add_argument('--num_scales', default=3, type=int, help='Number of scales for model architecture')
     parser.add_argument('--num_blocks', default=8, type=int, help='Number of residual blocks')
-
 
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--benchmark', action='store_true', help='Turn on CUDNN benchmarking')
