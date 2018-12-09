@@ -34,3 +34,35 @@ class Squeezing(RealNVPLayer):
             z = util.depth_to_space(z, 2)
 
         return x, z
+
+
+class Unsqueezing(RealNVPLayer):
+    """Trade number of channels for spatial size .
+
+    See Also:
+        - Figure 3 of RealNVP paper: https://arxiv.org/abs/1605.08803
+    """
+
+    def __init__(self):
+        super(Squeezing, self).__init__()
+
+    def forward(self, x, sldj, z=None):
+        if x.size(1) % 4 != 0:
+            raise ValueError('x channels must be divisible by 4: {}'.format(x.size()))
+
+        y = util.depth_to_space(x, 2)
+        if z is not None:
+            z = util.depth_to_space(z, 2)
+
+        return y, sldj, z
+
+    def backward(self, y, z):
+
+        if y.size(2) % 2 != 0 or y.size(3) % 2 != 0:
+            raise ValueError('y height/width must be even: {}'.format(y.size()))
+
+        x = util.space_to_depth(y, 2)
+        if z is not None:
+            z = util.space_to_depth(z, 2)
+
+        return x, z
