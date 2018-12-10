@@ -79,7 +79,9 @@ class RealNVP(nn.Module):
 
             # Dequantize and convert to logits
             y, sldj = self.pre_process(x)
-            sldj = sldj + g_sldj
+
+            if g_sldj:
+                sldj = sldj + g_sldj
 
             # Apply forward flows
             z = None

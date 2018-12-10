@@ -1,9 +1,8 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from models.real_nvp.real_nvp import RealNVP
 from models.real_nvp.d2d_real_nvp import D2DRealNVP
+
 
 class PairedNVP(nn.Module):
     """Double RealNVP Model with domain-to-domain and domain-to-latent maps
@@ -16,12 +15,15 @@ class PairedNVP(nn.Module):
         num_blocks (int): Number of residual blocks in the s and t network of
         `Coupling` layers.
     """
-    def __init__(self, *args, **kwargs):
+
+    def __init__(self, num_scales=2, in_channels=3, mid_channels=64, num_blocks=8):
         super(PairedNVP, self).__init__()
 
         # Assume the two flows are taking the same arguments
-        self.d2d = D2DRealNVP(*args, **kwargs)
-        self.rnvp = RealNVP(*args, **kwargs)
+        self.d2d = D2DRealNVP(num_scales=num_scales, in_channels=in_channels, mid_channels=mid_channels,
+                              num_blocks=num_blocks)
+        self.rnvp = RealNVP(num_scales=num_scales, in_channels=in_channels, mid_channels=mid_channels,
+                            num_blocks=num_blocks)
 
     def forward(self, input, double_flow, reverse=False):
         if reverse:
@@ -42,5 +44,5 @@ class PairedNVP(nn.Module):
                 x = input
                 sldj = None
 
-            z, sldj = self.rnvp(x, sldj)
+            z, sldj = self.rnvp(x, g_sldj=sldj)
             return z, sldj

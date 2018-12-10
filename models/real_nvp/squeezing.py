@@ -44,7 +44,7 @@ class Unsqueezing(RealNVPLayer):
     """
 
     def __init__(self):
-        super(Squeezing, self).__init__()
+        super(Unsqueezing, self).__init__()
 
     def forward(self, x, sldj, z=None):
         if x.size(1) % 4 != 0:

@@ -20,7 +20,7 @@ class D2DRealNVP(RealNVP):
     """
 
     def __init__(self, num_scales=2, in_channels=3, mid_channels=64, num_blocks=8):
-        super(RealNVP, self).__init__()
+        super(D2DRealNVP, self).__init__()
         # Register data_constraint to pre-process images, not learnable
         self.register_buffer('data_constraint', torch.tensor([0.9], dtype=torch.float32))
 
@@ -45,16 +45,20 @@ class D2DRealNVP(RealNVP):
 
         # Unsqueeze part
         for scale in range(num_scales):
-            layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False),
-                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True),
-                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False)]
+            if scale < num_scales - 1:
+                layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False),
+                           Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True),
+                           Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False)]
 
-            in_channels /= 4  # Account for the unsqueeze
-            mid_channels /= 2  # When unsqueezing, half the number of hidden-layer features in s and t
-            layers += [Unsqueezing(),
-                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
-                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=True),
-                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False)]
+                in_channels = int(in_channels / 4)  # Account for the unsqueeze
+                mid_channels = int(mid_channels / 2)  # When unsqueezing, half the number of hidden-layer features in
+                # s and t
+                layers += [Unsqueezing(),
+                           Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
+                           Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=True),
+                           Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False)]
+            else:
+                layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True)]
 
         self.layers = nn.ModuleList(layers)
 
@@ -98,7 +102,7 @@ class D2DRealNVP(RealNVP):
 
             x = y
 
-            #Shape should stay constant - hourglass architecture image-to-image
-            assert(x.shape == x2.shape)
+            # Shape should stay constant - hourglass architecture image-to-image
+            assert x.shape == x2.shape, f'x and x2 have different shapes: {x.shape}, {x2.shape}'
 
             return x, sldj

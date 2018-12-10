@@ -12,7 +12,7 @@ import torchvision
 import torchvision.transforms as transforms
 import util
 
-from models import RealNVP, RealNVPLoss
+from models import RealNVP, RealNVPLoss, PairedNVP
 from tqdm import tqdm
 
 
@@ -34,31 +34,65 @@ def main(args):
     ])
     # if args.overfit: transform_test = [transforms.ColorJitter()] + transform_test
 
-    if args.dataset == 'MNIST':
-        trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
-        testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
+    if args.model == 'realnvp':
+        if args.dataset == 'MNIST':
+            trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
+            testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
 
-    elif args.dataset == 'SVHN':
-        trainset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_train)
-        testset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_test)
+        elif args.dataset == 'SVHN':
+            trainset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_train)
+            testset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_test)
 
-    elif args.dataset == 'CIFAR10':
-        trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform_train)
-        testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform_test)
+        elif args.dataset == 'CIFAR10':
+            trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform_train)
+            testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform_test)
 
+        else:
+            raise Exception("Invalid dataset name")
+
+        if args.overfit:
+            trainset = data.dataset.Subset(trainset, range(128))
+            testset = data.dataset.Subset(testset, range(128))
+
+        trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+        testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+
+        # Real-NVP Model
+        print('building realnvp model..')
+        net = RealNVP(num_scales=args.num_scales, in_channels=3, mid_channels=64, num_blocks=args.num_blocks)
+
+    elif args.model == 'pairednvp':
+
+        # TODO: Datasets used are hardcoded for now
+        trainset_x = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
+        testset_x = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
+
+        trainset_x2 = torchvision.datasets.SVHN(root='data', download=True, transform=transform_train)
+        testset_x2 = torchvision.datasets.SVHN(root='data', download=True, transform=transform_test)
+
+        if args.overfit:
+            trainset_x = data.dataset.Subset(trainset_x, range(128))
+            testset_x = data.dataset.Subset(testset_x, range(128))
+
+            trainset_x2 = data.dataset.Subset(trainset_x2, range(128))
+            testset_x2 = data.dataset.Subset(testset_x2, range(128))
+
+        trainloader_x = data.DataLoader(trainset_x, batch_size=args.batch_size, shuffle=True,
+                                        num_workers=args.num_workers)
+        testloader_x = data.DataLoader(testset_x, batch_size=args.batch_size, shuffle=False,
+                                       num_workers=args.num_workers)
+
+        trainloader_x2 = data.DataLoader(trainset_x2, batch_size=args.batch_size, shuffle=True,
+                                         num_workers=args.num_workers)
+        testloader_x2 = data.DataLoader(testset_x2, batch_size=args.batch_size, shuffle=False,
+                                        num_workers=args.num_workers)
+
+        # Paired-NVP Model
+        print('Building pairednvp model..')
+        net = PairedNVP(num_scales=args.num_scales, in_channels=3, mid_channels=64, num_blocks=args.num_blocks)
     else:
-        raise Exception("Invalid dataset name")
+        raise Exception("Invalid model name")
 
-    if args.overfit:
-        trainset = data.dataset.Subset(trainset, range(12))
-        testset = data.dataset.Subset(testset, range(12))
-
-    trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
-    testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
-
-    # Model
-    print('Building model..')
-    net = RealNVP(num_scales=args.num_scales, in_channels=3, mid_channels=64, num_blocks=args.num_blocks)
     net = net.to(device)
     if device == 'cuda':
         net = torch.nn.DataParallel(net, args.gpu_ids)
@@ -78,12 +112,27 @@ def main(args):
     param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
     optimizer = optim.Adam(param_groups, lr=args.lr)
 
-    for epoch in range(start_epoch, start_epoch + args.num_epochs):
-        train(epoch, net, trainloader, device, optimizer, loss_fn, args.max_grad_norm)
-        test(epoch, net, testloader, device, loss_fn, args.num_samples, args.num_epoch_samples)
+    if args.model == 'realnvp':
+
+        for epoch in range(start_epoch, start_epoch + args.num_epochs):
+            train(epoch, net, trainloader, device, optimizer, loss_fn, args.max_grad_norm)
+            test(epoch, net, testloader, device, loss_fn, args.num_samples, args.num_epoch_samples)
+
+    else:
+
+        for epoch in range(start_epoch, start_epoch + args.num_epochs):
+            train(epoch, net, trainloader_x, device, optimizer, loss_fn, args.max_grad_norm,
+                  args.model, double_flow=False)
+            train(epoch, net, trainloader_x2, device, optimizer, loss_fn, args.max_grad_norm,
+                  args.model, double_flow=True)
+
+            test(epoch, net, testloader_x, device, loss_fn, args.num_samples, args.num_epoch_samples,
+                 args.model, double_flow=False)
+            test(epoch, net, testloader_x2, device, loss_fn, args.num_samples, args.num_epoch_samples,
+                 args.model, double_flow=True)
 
 
-def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm):
+def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm, model='realnvp', double_flow=False):
     print('\nEpoch: %d' % epoch)
     net.train()
     loss_meter = util.AverageMeter()
@@ -91,7 +140,10 @@ def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm):
         for x, _ in trainloader:
             x = x.to(device)
             optimizer.zero_grad()
-            z, sldj = net(x, reverse=False)
+            if model == 'realnvp':
+                z, sldj = net(x, reverse=False)
+            else:
+                z, sldj = net(x, double_flow, reverse=False)
             loss = loss_fn(z, sldj)
             print("Train loss: {}".format(loss))
             loss_meter.update(loss.item(), x.size(0))
@@ -104,22 +156,28 @@ def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm):
             progress_bar.update(x.size(0))
 
 
-def sample(net, batch_size, device):
+def sample(net, batch_size, device, model='realnvp', double_flow=False):
     """Sample from RealNVP model.
 
     Args:
         net (torch.nn.DataParallel): The RealNVP model wrapped in DataParallel.
         batch_size (int): Number of samples to generate.
         device (torch.device): Device to use.
+        model (str): Type of model
+        double_flow (bool): For Paired-NVP, whether or not to sample from x or x2
     """
     z = torch.randn((batch_size, 3, 32, 32), dtype=torch.float32, device=device)
-    x, _ = net(z, reverse=True)
-    x = torch.sigmoid(x)
 
+    if model == 'realnvp':
+        x, _ = net(z, reverse=True)
+    elif model == 'pairednvp':
+        x, _ = net(z, double_flow, reverse=True)
+
+    x = torch.sigmoid(x)
     return x
 
 
-def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples):
+def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples, model='realnvp', double_flow=False):
     global best_loss
     net.eval()
     loss_meter = util.AverageMeter()
@@ -127,7 +185,10 @@ def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples
         with tqdm(total=len(testloader.dataset)) as progress_bar:
             for x, _ in testloader:
                 x = x.to(device)
-                z, sldj = net(x)
+                if model == 'realnvp':
+                    z, sldj = net(x)
+                elif model == 'pairednvp':
+                    z, sldj = net(x, double_flow)
                 loss = loss_fn(z, sldj)
                 print("Test loss: {}".format(loss))
                 loss_meter.update(loss.item(), x.size(0))
@@ -149,7 +210,7 @@ def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples
 
     if epoch % num_epoch_samples == 0:
         # Save samples and data
-        images = sample(net, num_samples, device)
+        images = sample(net, num_samples, device, model, double_flow)
         os.makedirs('samples', exist_ok=True)
         images_concat = torchvision.utils.make_grid(images, nrow=int(num_samples ** 0.5), padding=2, pad_value=255)
         torchvision.utils.save_image(images_concat, 'samples/epoch_{}.png'.format(epoch))
@@ -166,6 +227,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_scales', default=3, type=int, help='Number of scales for model architecture')
     parser.add_argument('--num_blocks', default=8, type=int, help='Number of residual blocks')
     parser.add_argument('--num_epoch_samples', default=1, type=int, help='Sample per num_epoch_samples epochs')
+    parser.add_argument('--model', default='realnvp', type=str, help='Type of model (realnvp or pairednvp)')
 
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--benchmark', action='store_true', help='Turn on CUDNN benchmarking')
