@@ -15,6 +15,11 @@ import util
 from models import RealNVP, RealNVPLoss, PairedNVP
 from tqdm import tqdm
 
+def alternate(*args):
+    for iterable in zip(*args):
+        for item in iterable:
+            if item is not None:
+                yield item
 
 def main(args):
     device = 'cuda' if torch.cuda.is_available() and len(args.gpu_ids) > 0 else 'cpu'
@@ -55,8 +60,8 @@ def main(args):
             raise Exception("Invalid dataset name")
 
         if args.overfit:
-            trainset = data.dataset.Subset(trainset, range(128))
-            testset = data.dataset.Subset(testset, range(128))
+            trainset = data.dataset.Subset(trainset, range(4))
+            testset = data.dataset.Subset(testset, range(4))
 
         trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
         testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
@@ -119,32 +124,42 @@ def main(args):
     #TODO: in paired NVP setting, make X and X2 examples alternate batch-by-batch instead of epoch-by-epoch
     for epoch in range(start_epoch, start_epoch + args.num_epochs):
         if args.model == 'realnvp':
-            train(epoch, net, trainloader, device, optimizer, loss_fn, args.max_grad_norm)
-            test(epoch, net, testloader, device, loss_fn, args.num_samples, args.num_epoch_samples)
+            train(epoch, net, trainloader, device, optimizer, loss_fn, args.max_grad_norm, len(trainloader.dataset))
+            test(epoch, net, testloader, device, loss_fn, args.num_samples, args.num_epoch_samples, len(testloader.dataset))
         elif args.model == 'pairednvp':
-            train(epoch, net, trainloader_x, device, optimizer, loss_fn, args.max_grad_norm,
-                  args.model, double_flow=False)
-            train(epoch, net, trainloader_x2, device, optimizer, loss_fn, args.max_grad_norm,
-                  args.model, double_flow=True)
+            paired_train_loader = alternate(trainloader_x, trainloader_x2)
+            paired_test_loader = alternate(testloader_x, testloader_x2)
 
-            #TODO: replace this
-            if epoch % 100 == 0:
-                test(epoch, net, testloader_x, device, loss_fn, args.num_samples, args.num_epoch_samples,
-                     args.model, double_flow=False)
-                test(epoch, net, testloader_x2, device, loss_fn, args.num_samples, args.num_epoch_samples,
-                     args.model, double_flow=True)
+            # Hardcoded to X being before X2. Spits out False, True, False, True... forever
+            is_double_flow_iter = alternate(iter(lambda: False, 2), iter(lambda: True, 2))
+
+            num_train_examples = min(len(trainloader_x.dataset), len(trainloader_x2.dataset))*2
+            train(epoch, net, paired_train_loader, device, optimizer, loss_fn, args.max_grad_norm,
+                  num_train_examples, args.model, is_double_flow_iter=is_double_flow_iter)
+
+            num_test_examples = min(len(testloader_x.dataset), len(testloader_x2.dataset))*2
+            test(epoch, net, paired_test_loader, device, loss_fn, args.num_samples, args.num_epoch_samples,
+                 num_test_examples, args.model, is_double_flow_iter=is_double_flow_iter)
 
         else: raise Exception('Invalid model name')
 
 
-def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm, model='realnvp', double_flow=False):
+def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm,
+          num_examples, model='realnvp', is_double_flow_iter=None):
     print('\nEpoch: %d' % epoch)
-    if model == 'pairednvp':
-        print(f'\nDouble flow: {double_flow}')
     net.train()
     loss_meter = util.AverageMeter()
-    with tqdm(total=len(trainloader.dataset)) as progress_bar:
-        for x, _ in trainloader:
+    with tqdm(total=num_examples) as progress_bar:
+        if is_double_flow_iter is not None:
+            loader = zip(trainloader, is_double_flow_iter)
+        else:
+            loader = trainloader
+        for batch in loader:
+            if is_double_flow_iter is not None:
+                (x, _), double_flow = batch
+            else:
+                x, _ = batch
+                double_flow = None
             x = x.to(device)
             optimizer.zero_grad()
             if model == 'realnvp':
@@ -184,13 +199,23 @@ def sample(net, batch_size, device, model='realnvp', double_flow=False):
     return x
 
 
-def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples, model='realnvp', double_flow=False):
+def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples,
+        num_examples, model='realnvp', is_double_flow_iter=None):
     global best_loss
     net.eval()
     loss_meter = util.AverageMeter()
     with torch.no_grad():
-        with tqdm(total=len(testloader.dataset)) as progress_bar:
-            for x, _ in testloader:
+        with tqdm(total=num_examples) as progress_bar:
+            if is_double_flow_iter is not None:
+                loader = zip(testloader, is_double_flow_iter)
+            else:
+                loader = testloader
+            for batch in loader:
+                if is_double_flow_iter is not None:
+                    (x, _), double_flow = batch
+                else:
+                    x, _ = batch
+                double_flow = None
                 x = x.to(device)
                 if model == 'realnvp':
                     z, sldj = net(x)
