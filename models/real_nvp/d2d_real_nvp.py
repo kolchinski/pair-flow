@@ -97,7 +97,7 @@ class D2DRealNVP(RealNVP):
             # This model shouldn't have split layers => z should stay None
             assert(z_split is None)
 
-            x = self.pre_process(y)
+            x, _ = self.pre_process(y)
 
             # Shape should stay constant - hourglass architecture image-to-image
             assert x.shape == x2.shape, f'x and x2 have different shapes: {x.shape}, {x2.shape}'
