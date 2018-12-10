@@ -23,6 +23,7 @@ class RealNVP(nn.Module):
         num_blocks (int): Number of residual blocks in the s and t network of
         `Coupling` layers.
     """
+
     def __init__(self, num_scales=2, in_channels=3, mid_channels=64, num_blocks=8):
         super(RealNVP, self).__init__()
         # Register data_constraint to pre-process images, not learnable
@@ -39,7 +40,7 @@ class RealNVP(nn.Module):
                        Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False)]
 
             if scale < num_scales - 1:
-                in_channels *= 4   # Account for the squeeze
+                in_channels *= 4  # Account for the squeeze
                 mid_channels *= 2  # When squeezing, double the number of hidden-layer features in s and t
                 layers += [Squeezing(),
                            Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
@@ -80,7 +81,7 @@ class RealNVP(nn.Module):
             # Dequantize and convert to logits
             y, sldj = self.pre_process(x)
 
-            if g_sldj:
+            if g_sldj is not None:
                 sldj = sldj + g_sldj
 
             # Apply forward flows
@@ -116,7 +117,7 @@ class RealNVP(nn.Module):
 
         # Save log-determinant of Jacobian of initial transform
         ldj = F.softplus(y) + F.softplus(-y) \
-            - F.softplus((1. - self.data_constraint).log() - self.data_constraint.log())
+              - F.softplus((1. - self.data_constraint).log() - self.data_constraint.log())
         sldj = ldj.view(ldj.size(0), -1).sum(-1)
 
         return y, sldj
