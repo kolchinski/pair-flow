@@ -31,13 +31,11 @@ def main(args):
         transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
-    # if args.overfit: transform_train = [transforms.ColorJitter()] + transform_train
 
     transform_test = transforms.Compose([
         transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
-    # if args.overfit: transform_test = [transforms.ColorJitter()] + transform_test
 
     # init
     trainloader_x, trainloader_x2, testloader_x, testloader_x2, testloader, trainloader \
@@ -60,8 +58,8 @@ def main(args):
             raise Exception("Invalid dataset name")
 
         if args.overfit:
-            trainset = data.dataset.Subset(trainset, range(4))
-            testset = data.dataset.Subset(testset, range(4))
+            trainset = data.dataset.Subset(trainset, range(args.overfit_num_pts))
+            testset = data.dataset.Subset(testset, range(args.overfit_num_pts))
 
         trainloader = data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
         testloader = data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
@@ -80,11 +78,11 @@ def main(args):
         testset_x2 = torchvision.datasets.SVHN(root='data', download=True, transform=transform_test)
 
         if args.overfit:
-            trainset_x = data.dataset.Subset(trainset_x, range(4))
-            testset_x = data.dataset.Subset(testset_x, range(4))
+            trainset_x = data.dataset.Subset(trainset_x, range(args.overfit_num_pts))
+            testset_x = data.dataset.Subset(testset_x, range(args.overfit_num_pts))
 
-            trainset_x2 = data.dataset.Subset(trainset_x2, range(4))
-            testset_x2 = data.dataset.Subset(testset_x2, range(4))
+            trainset_x2 = data.dataset.Subset(trainset_x2, range(args.overfit_num_pts))
+            testset_x2 = data.dataset.Subset(testset_x2, range(args.overfit_num_pts))
 
         trainloader_x = data.DataLoader(trainset_x, batch_size=args.batch_size, shuffle=True,
                                         num_workers=args.num_workers)
@@ -254,7 +252,8 @@ if __name__ == '__main__':
     # args for overfit/not, #scales/maybe other architecture stuff
     # arg for dataset
 
-    parser.add_argument('--overfit', action='store_true', help='Only use one wiggled data point for overfit test')
+    parser.add_argument('--overfit', action='store_true', help='Constrain number of train/test points?')
+    parser.add_argument('--overfit_num_pts', default=128, type=int, help='Number of points to use for overfitting')
     parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
     parser.add_argument('--num_scales', default=3, type=int, help='Number of scales for model architecture')
     parser.add_argument('--num_blocks', default=8, type=int, help='Number of residual blocks')
