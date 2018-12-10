@@ -67,7 +67,7 @@ def main(args):
 
     elif args.model == 'pairednvp':
 
-        # TODO: Datasets used are hardcoded for now
+        # TODO: Datasets used are hardcoded for now. Maybe reverse MNIST and SVHN?
         trainset_x = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
         testset_x = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
 
@@ -75,11 +75,11 @@ def main(args):
         testset_x2 = torchvision.datasets.SVHN(root='data', download=True, transform=transform_test)
 
         if args.overfit:
-            trainset_x = data.dataset.Subset(trainset_x, range(128))
-            testset_x = data.dataset.Subset(testset_x, range(128))
+            trainset_x = data.dataset.Subset(trainset_x, range(4))
+            testset_x = data.dataset.Subset(testset_x, range(4))
 
-            trainset_x2 = data.dataset.Subset(trainset_x2, range(128))
-            testset_x2 = data.dataset.Subset(testset_x2, range(128))
+            trainset_x2 = data.dataset.Subset(trainset_x2, range(4))
+            testset_x2 = data.dataset.Subset(testset_x2, range(4))
 
         trainloader_x = data.DataLoader(trainset_x, batch_size=args.batch_size, shuffle=True,
                                         num_workers=args.num_workers)
@@ -116,21 +116,25 @@ def main(args):
     param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
     optimizer = optim.Adam(param_groups, lr=args.lr)
 
+    #TODO: in paired NVP setting, make X and X2 examples alternate batch-by-batch instead of epoch-by-epoch
     for epoch in range(start_epoch, start_epoch + args.num_epochs):
         if args.model == 'realnvp':
             train(epoch, net, trainloader, device, optimizer, loss_fn, args.max_grad_norm)
             test(epoch, net, testloader, device, loss_fn, args.num_samples, args.num_epoch_samples)
-        else:
+        elif args.model == 'pairednvp':
             train(epoch, net, trainloader_x, device, optimizer, loss_fn, args.max_grad_norm,
                   args.model, double_flow=False)
             train(epoch, net, trainloader_x2, device, optimizer, loss_fn, args.max_grad_norm,
                   args.model, double_flow=True)
 
+            #TODO: replace this
             if epoch % 100 == 0:
                 test(epoch, net, testloader_x, device, loss_fn, args.num_samples, args.num_epoch_samples,
                      args.model, double_flow=False)
                 test(epoch, net, testloader_x2, device, loss_fn, args.num_samples, args.num_epoch_samples,
                      args.model, double_flow=True)
+
+        else: raise Exception('Invalid model name')
 
 
 def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm, model='realnvp', double_flow=False):

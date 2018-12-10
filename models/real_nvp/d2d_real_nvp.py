@@ -74,7 +74,8 @@ class D2DRealNVP(RealNVP):
 
             assert(z_split is None)
 
-            x2 = y
+            # Undo logits
+            x2 = torch.sigmoid(y)
             assert(x.shape == x2.shape)
 
             return x2, None
@@ -97,7 +98,8 @@ class D2DRealNVP(RealNVP):
             # This model shouldn't have split layers => z should stay None
             assert(z_split is None)
 
-            x, _ = self.pre_process(y)
+            # Undo logits
+            x = torch.sigmoid(x)
 
             # Shape should stay constant - hourglass architecture image-to-image
             assert x.shape == x2.shape, f'x and x2 have different shapes: {x.shape}, {x2.shape}'

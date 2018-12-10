@@ -1,5 +1,6 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
+
 from models.real_nvp.real_nvp import RealNVP
 from models.real_nvp.d2d_real_nvp import D2DRealNVP
 
@@ -31,6 +32,7 @@ class PairedNVP(nn.Module):
             x, _ = self.rnvp(z, reverse=True)
 
             if double_flow:
+                x = torch.sigmoid(x)
                 x2, _ = self.d2d(x, reverse=True)
                 return x2, None
             else:
