@@ -238,6 +238,7 @@ def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples
         torch.save(state, 'ckpts/best.pth.tar')
         best_loss = loss_meter.avg
 
+    #TODO: Fix this - right now only sampling from one domain
     if epoch % num_epoch_samples == 0:
         # Save samples and data
         images = sample(net, num_samples, device, model, double_flow)
