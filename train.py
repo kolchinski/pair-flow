@@ -162,7 +162,7 @@ def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm,
             optimizer.zero_grad()
             if model == 'realnvp':
                 z, sldj = net(x, reverse=False)
-            else:
+            elif model == 'pairednvp':
                 z, sldj = net(x, double_flow, reverse=False)
             loss = loss_fn(z, sldj)
             print("Train loss: {}".format(loss))
@@ -213,7 +213,7 @@ def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples
                     (x, _), double_flow = batch
                 else:
                     x, _ = batch
-                double_flow = None
+                    double_flow = None
                 x = x.to(device)
                 if model == 'realnvp':
                     z, sldj = net(x)
