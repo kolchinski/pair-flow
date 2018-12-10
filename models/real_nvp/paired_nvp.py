@@ -1,5 +1,5 @@
 import torch.nn as nn
-
+import torch
 from models.real_nvp.real_nvp import RealNVP
 from models.real_nvp.d2d_real_nvp import D2DRealNVP
 

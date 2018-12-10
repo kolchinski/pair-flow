@@ -34,6 +34,10 @@ def main(args):
     ])
     # if args.overfit: transform_test = [transforms.ColorJitter()] + transform_test
 
+    # init
+    trainloader_x, trainloader_x2, testloader_x, testloader_x2, testloader, trainloader \
+        = None, None, None, None, None, None
+
     if args.model == 'realnvp':
         if args.dataset == 'MNIST':
             trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
@@ -112,15 +116,11 @@ def main(args):
     param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
     optimizer = optim.Adam(param_groups, lr=args.lr)
 
-    if args.model == 'realnvp':
-
-        for epoch in range(start_epoch, start_epoch + args.num_epochs):
+    for epoch in range(start_epoch, start_epoch + args.num_epochs):
+        if args.model == 'realnvp':
             train(epoch, net, trainloader, device, optimizer, loss_fn, args.max_grad_norm)
             test(epoch, net, testloader, device, loss_fn, args.num_samples, args.num_epoch_samples)
-
-    else:
-
-        for epoch in range(start_epoch, start_epoch + args.num_epochs):
+        else:
             train(epoch, net, trainloader_x, device, optimizer, loss_fn, args.max_grad_norm,
                   args.model, double_flow=False)
             train(epoch, net, trainloader_x2, device, optimizer, loss_fn, args.max_grad_norm,
