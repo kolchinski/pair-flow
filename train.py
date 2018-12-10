@@ -135,6 +135,8 @@ def main(args):
 
 def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm, model='realnvp', double_flow=False):
     print('\nEpoch: %d' % epoch)
+    if model == 'pairednvp':
+        print(f'\nDouble flow: {double_flow}')
     net.train()
     loss_meter = util.AverageMeter()
     with tqdm(total=len(trainloader.dataset)) as progress_bar:
