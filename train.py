@@ -126,10 +126,11 @@ def main(args):
             train(epoch, net, trainloader_x2, device, optimizer, loss_fn, args.max_grad_norm,
                   args.model, double_flow=True)
 
-            test(epoch, net, testloader_x, device, loss_fn, args.num_samples, args.num_epoch_samples,
-                 args.model, double_flow=False)
-            test(epoch, net, testloader_x2, device, loss_fn, args.num_samples, args.num_epoch_samples,
-                 args.model, double_flow=True)
+            if epoch % 100 == 0:
+                test(epoch, net, testloader_x, device, loss_fn, args.num_samples, args.num_epoch_samples,
+                     args.model, double_flow=False)
+                test(epoch, net, testloader_x2, device, loss_fn, args.num_samples, args.num_epoch_samples,
+                     args.model, double_flow=True)
 
 
 def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm, model='realnvp', double_flow=False):
