@@ -164,8 +164,9 @@ def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm,
                 z, sldj = net(x, reverse=False)
             elif model == 'pairednvp':
                 z, sldj = net(x, double_flow, reverse=False)
-            loss = loss_fn(z, sldj)
-            print("Train loss: {}".format(loss))
+            model_loss, jacobian_loss = loss_fn(z, sldj)
+            print("Train losses: {} model loss; {} Jacobian clamp loss".format(model_loss, jacobian_loss))
+            loss = model_loss + jacobian_loss
             loss_meter.update(loss.item(), x.size(0))
             loss.backward()
             util.clip_grad_norm(optimizer, max_grad_norm)
@@ -191,7 +192,9 @@ def sample(net, batch_size, device, model='realnvp', double_flow=False):
     if model == 'realnvp':
         x, _ = net(z, reverse=True)
     elif model == 'pairednvp':
-        x, _ = net(z, double_flow, reverse=True)
+        x, _ = net(z, False, reverse=True)
+        x2, _ = net(z, True, reverse=True)
+        x = torch.cat((x,x2),dim=0)
 
     x = torch.sigmoid(x)
     return x
@@ -219,8 +222,9 @@ def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples
                     z, sldj = net(x)
                 elif model == 'pairednvp':
                     z, sldj = net(x, double_flow)
-                loss = loss_fn(z, sldj)
-                print("Test loss: {}".format(loss))
+                model_loss, jacobian_loss = loss_fn(z, sldj)
+                print("Test losses: {} model loss; {} Jacobian clamp loss".format(model_loss, jacobian_loss))
+                loss = model_loss + jacobian_loss
                 loss_meter.update(loss.item(), x.size(0))
                 progress_bar.set_postfix(loss=loss_meter.avg,
                                          bpd=util.bits_per_dim(x, loss_meter.avg))

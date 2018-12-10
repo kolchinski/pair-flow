@@ -26,6 +26,6 @@ class RealNVPLoss(nn.Module):
         # TODO: Make hyperparam
         lmbda_max = 6500
         if sldj.mean() > lmbda_max:
-            return nll + (sldj.mean() - lmbda_max) ** 2
+            return nll, (sldj.mean() - lmbda_max) ** 2
 
-        return nll
+        return nll, 0.
