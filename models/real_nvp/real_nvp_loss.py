@@ -12,9 +12,10 @@ class RealNVPLoss(nn.Module):
     See Also:
         Equation (3) in the RealNVP paper: https://arxiv.org/abs/1605.08803
     """
-    def __init__(self, k=256):
+    def __init__(self, k=256, lambda_max=float("inf")):
         super(RealNVPLoss, self).__init__()
         self.k = k
+        self.lambda_max = lambda_max
 
     def forward(self, z, sldj):
         prior_ll = -0.5 * (z ** 2 + np.log(2 * np.pi))
@@ -24,8 +25,7 @@ class RealNVPLoss(nn.Module):
         nll = -ll.mean()
 
         # TODO: Make hyperparam
-        lmbda_max = 6500
-        if sldj.mean() > lmbda_max:
-            return nll, (sldj.mean() - lmbda_max) ** 2
+        if sldj.mean() > self.lambda_max:
+            return nll, (sldj.mean() - self.lambda_max) ** 2
 
         return nll, 0.
