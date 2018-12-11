@@ -27,6 +27,6 @@ class RealNVPLoss(nn.Module):
         if sldj.mean() > self.lambda_max:
             jacobian_loss = (sldj.mean() - self.lambda_max) ** 2
         else:
-            jacobian_loss = 0
+            jacobian_loss = 0.
 
         return nll, jacobian_loss

@@ -251,7 +251,7 @@ def test(epoch, net, testloader, device, loss_fns, num_samples, num_epoch_sample
 
     if epoch % num_epoch_samples == 0:
         # Save samples and data
-        images = sample(net, num_samples, device, model, double_flow)
+        images = sample(net, num_samples, device, model)
         os.makedirs('samples', exist_ok=True)
         images_concat = torchvision.utils.make_grid(images, nrow=int(num_samples ** 0.5), padding=2, pad_value=255)
         torchvision.utils.save_image(images_concat, 'samples/epoch_{}.png'.format(epoch))
