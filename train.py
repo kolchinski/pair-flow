@@ -26,16 +26,17 @@ def main(args):
     start_epoch = 0
 
     # Note: No normalization applied, since RealNVP expects inputs in (0, 1).
-    transform_train = transforms.Compose([
+    transform_mnist = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
+        transforms.Pad(padding=2, padding_mode='edge'),
         transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
 
-    transform_test = transforms.Compose([
-        transforms.Grayscale(num_output_channels=3),
+    transform_svhn = transforms.Compose([
         transforms.ToTensor()
     ])
+
 
     # init
     trainloader_x, trainloader_x2, testloader_x, testloader_x2, testloader, trainloader \
@@ -43,16 +44,12 @@ def main(args):
 
     if args.model == 'realnvp':
         if args.dataset == 'MNIST':
-            trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
-            testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
+            trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_mnist)
+            testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_mnist)
 
         elif args.dataset == 'SVHN':
-            trainset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_train)
-            testset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_test)
-
-        elif args.dataset == 'CIFAR10':
-            trainset = torchvision.datasets.CIFAR10(root='data', train=True, download=True, transform=transform_train)
-            testset = torchvision.datasets.CIFAR10(root='data', train=False, download=True, transform=transform_test)
+            trainset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_svhn)
+            testset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_svhn)
 
         else:
             raise Exception("Invalid dataset name")
@@ -70,12 +67,21 @@ def main(args):
 
     elif args.model == 'pairednvp':
 
-        # TODO: Datasets used are hardcoded for now. Maybe reverse MNIST and SVHN?
-        trainset_x = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_train)
-        testset_x = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_test)
+        trainset_mnist = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_mnist)
+        testset_mnist = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_mnist)
 
-        trainset_x2 = torchvision.datasets.SVHN(root='data', download=True, transform=transform_train)
-        testset_x2 = torchvision.datasets.SVHN(root='data', download=True, transform=transform_test)
+        trainset_svhn = torchvision.datasets.SVHN(root='data', download=True, transform=transform_svhn)
+        testset_svhn = torchvision.datasets.SVHN(root='data', download=True, transform=transform_svhn)
+
+        if args.x_domain == 'MNIST':
+            print('x domain is MNIST')
+            trainset_x, testset_x = trainset_mnist, testset_mnist
+            trainset_x2, testset_x2 = trainset_svhn, testset_svhn
+        elif args.x_domain == 'SVHN':
+            trainset_x2, testset_x2 = trainset_mnist, testset_mnist
+            trainset_x, testset_x = trainset_svhn, testset_svhn
+        else:
+            raise Exception("Invalid x domain")
 
         if args.overfit:
             trainset_x = data.dataset.Subset(trainset_x, range(args.overfit_num_pts))
@@ -164,7 +170,9 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
             if model == 'realnvp':
                 z, sldj = net(x, reverse=False)
             elif model == 'pairednvp':
+                print('input shape: ', x.shape)
                 z, sldj = net(x, double_flow, reverse=False)
+                print('z shape: ', z.shape)
 
             single_loss_fn, double_loss_fn = loss_fns
             loss_fn = double_loss_fn if double_flow else single_loss_fn
@@ -271,6 +279,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_epoch_samples', default=1, type=int, help='Sample per num_epoch_samples epochs')
     parser.add_argument('--model', default='realnvp', type=str, help='Type of model (realnvp or pairednvp)')
     parser.add_argument('--lambda_max', default=float('inf'), type=float, help='Jacobian clamping threshold')
+    parser.add_argument('--x_domain', default='MNIST', type=str,
+                        help='Identify x and x2 domains (Either MNIST or SVHN)')
 
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--benchmark', action='store_true', help='Turn on CUDNN benchmarking')
