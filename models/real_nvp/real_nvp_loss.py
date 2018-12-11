@@ -17,23 +17,16 @@ class RealNVPLoss(nn.Module):
         self.k = k
         self.lambda_max = lambda_max
 
-    def forward(self, z, sldj, double_flow):
+    def forward(self, z, sldj):
         prior_ll = -0.5 * (z ** 2 + np.log(2 * np.pi))
         prior_ll = prior_ll.view(z.size(0), -1).sum(-1) \
             - np.log(self.k) * np.prod(z.size()[1:])
         ll = prior_ll + sldj
         nll = -ll.mean()
 
-        # For real-nvp style map to latent space
-        if double_flow is None or double_flow is False:
-            jacobian_loss = (max(sldj.mean(), self.lambda_max) - self.lambda_max) ** 2
-        # For domain-to-domain translation
-        elif double_flow is True:
-            print('double flow true')
-            # TODO: Make this a parameter
-            double_lambda_max = 8000
-            jacobian_loss = (max(sldj.mean(), double_lambda_max) - double_lambda_max) ** 2
+        if sldj.mean() > self.lambda_max:
+            jacobian_loss = (sldj.mean() - self.lambda_max) ** 2
         else:
-            raise Exception(f'Double is neither boolen or none: {double_flow}')
-        # TODO: Make hyperparam
+            jacobian_loss = 0
+
         return nll, jacobian_loss
