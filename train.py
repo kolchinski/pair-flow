@@ -15,11 +15,13 @@ import util
 from models import RealNVP, RealNVPLoss, PairedNVP
 from tqdm import tqdm
 
+
 def alternate(*args):
     for iterable in zip(*args):
         for item in iterable:
             if item is not None:
                 yield item
+
 
 def main(args):
     device = 'cuda' if torch.cuda.is_available() and len(args.gpu_ids) > 0 else 'cpu'
@@ -28,12 +30,12 @@ def main(args):
     # Note: No normalization applied, since RealNVP expects inputs in (0, 1).
     transform_train = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
-        transforms.Grayscale(num_output_channels=3),
+        # transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
 
     transform_test = transforms.Compose([
-        transforms.Grayscale(num_output_channels=3),
+        # transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor()
     ])
 
@@ -115,6 +117,7 @@ def main(args):
         best_loss = checkpoint['test_loss']
         start_epoch = checkpoint['epoch']
 
+    # This hardcodes the jacobian quotient for real-nvp to infinity (has no limit)
     loss_fns = [RealNVPLoss(lambda_max=lm) for lm in [float('inf'), 2 * args.lambda_max]]
     param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
     optimizer = optim.Adam(param_groups, lr=args.lr)
@@ -126,21 +129,28 @@ def main(args):
             test(epoch, net, testloader, device, loss_fns, args.num_samples, args.num_epoch_samples,
                  len(testloader.dataset))
         elif args.model == 'pairednvp':
-            paired_train_loader = alternate(trainloader_x, trainloader_x2)
-            paired_test_loader = alternate(testloader_x, testloader_x2)
+            paired_train_loader = trainloader_x2
+            paired_test_loader = testloader_x2
+
+            # paired_train_loader = alternate(trainloader_x, trainloader_x2)
+            # paired_test_loader = alternate(testloader_x, testloader_x2)
 
             # Hardcoded to X being before X2. Spits out False, True, False, True... forever
-            is_double_flow_iter = alternate(iter(lambda: False, 2), iter(lambda: True, 2))
+            # TODO: Un-hardcode double_flow from always being true for experiment run
+            is_double_flow_iter = alternate(iter(lambda: True, 2), iter(lambda: True, 2))
 
-            num_train_examples = min(len(trainloader_x.dataset), len(trainloader_x2.dataset))*2
+            # num_train_examples = min(len(trainloader_x.dataset), len(trainloader_x2.dataset)) * 2
+            num_train_examples = len(paired_train_loader)
             train(epoch, net, paired_train_loader, device, optimizer, loss_fns, args.max_grad_norm,
                   num_train_examples, args.model, is_double_flow_iter=is_double_flow_iter)
 
-            num_test_examples = min(len(testloader_x.dataset), len(testloader_x2.dataset))*2
+            # num_test_examples = min(len(testloader_x.dataset), len(testloader_x2.dataset)) * 2
+            num_test_examples = len(paired_test_loader)
             test(epoch, net, paired_test_loader, device, loss_fns, args.num_samples, args.num_epoch_samples,
                  num_test_examples, args.model, is_double_flow_iter=is_double_flow_iter)
 
-        else: raise Exception('Invalid model name')
+        else:
+            raise Exception('Invalid model name')
 
 
 def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
@@ -199,7 +209,7 @@ def sample(net, batch_size, device, model='realnvp'):
     elif model == 'pairednvp':
         x, _ = net(z, False, reverse=True)
         x2, _ = net(z, True, reverse=True)
-        x = torch.cat((x,x2),dim=0)
+        x = torch.cat((x, x2), dim=0)
 
     x = torch.sigmoid(x)
     return x
