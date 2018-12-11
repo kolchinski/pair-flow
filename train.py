@@ -280,7 +280,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_blocks', default=8, type=int, help='Number of residual blocks')
     parser.add_argument('--num_epoch_samples', default=1, type=int, help='Sample per num_epoch_samples epochs')
     parser.add_argument('--model', default='realnvp', type=str, help='Type of model (realnvp or pairednvp)')
-    parser.add_argument('--lambda_max', default=float('inf'), type=float, help='Jacobian clamping threshold')
+    parser.add_argument('--lambda_max', default=0, type=float, help='Jacobian clamping threshold')
 
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--benchmark', action='store_true', help='Turn on CUDNN benchmarking')
