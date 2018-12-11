@@ -170,9 +170,7 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
             if model == 'realnvp':
                 z, sldj = net(x, reverse=False)
             elif model == 'pairednvp':
-                print('input shape: ', x.shape)
                 z, sldj = net(x, double_flow, reverse=False)
-                print('z shape: ', z.shape)
 
             single_loss_fn, double_loss_fn = loss_fns
             loss_fn = double_loss_fn if double_flow else single_loss_fn
