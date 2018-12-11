@@ -242,13 +242,29 @@ def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples
         torch.save(state, 'ckpts/best.pth.tar')
         best_loss = loss_meter.avg
 
-    #TODO: Fix this - right now only sampling from one domain
     if epoch % num_epoch_samples == 0:
         # Save samples and data
-        images = sample(net, num_samples, device, model, double_flow)
-        os.makedirs('samples', exist_ok=True)
-        images_concat = torchvision.utils.make_grid(images, nrow=int(num_samples ** 0.5), padding=2, pad_value=255)
-        torchvision.utils.save_image(images_concat, 'samples/epoch_{}.png'.format(epoch))
+        if model == 'pairednvp':
+            # Sample from x
+            images_x = sample(net, num_samples, device, model, False)
+            os.makedirs('samples_x', exist_ok=True)
+            images_concat = torchvision.utils.make_grid(images_x, nrow=int(num_samples ** 0.5), padding=2,
+                                                        pad_value=255)
+            torchvision.utils.save_image(images_concat, 'samples_x/epoch_{}.png'.format(epoch))
+
+            # Sample from x2
+            images_x2 = sample(net, num_samples, device, model, True)
+            os.makedirs('samples_x2', exist_ok=True)
+            images_concat = torchvision.utils.make_grid(images_x2, nrow=int(num_samples ** 0.5), padding=2,
+                                                        pad_value=255)
+            torchvision.utils.save_image(images_concat, 'samples_x2/epoch_{}.png'.format(epoch))
+        elif model == 'realnvp':
+            images = sample(net, num_samples, device, model, double_flow)
+            os.makedirs('samples', exist_ok=True)
+            images_concat = torchvision.utils.make_grid(images, nrow=int(num_samples ** 0.5), padding=2, pad_value=255)
+            torchvision.utils.save_image(images_concat, 'samples/epoch_{}.png'.format(epoch))
+        else:
+            raise Exception('Invalid Model name')
 
 
 if __name__ == '__main__':
