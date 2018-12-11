@@ -164,7 +164,7 @@ def train(epoch, net, trainloader, device, optimizer, loss_fn, max_grad_norm,
                 z, sldj = net(x, reverse=False)
             elif model == 'pairednvp':
                 z, sldj = net(x, double_flow, reverse=False)
-            model_loss, jacobian_loss = loss_fn(z, sldj)
+            model_loss, jacobian_loss = loss_fn(z, sldj, double_flow)
             print("Train losses: {} model loss; {} Jacobian clamp loss".format(model_loss, jacobian_loss))
             loss = model_loss + jacobian_loss
             loss_meter.update(loss.item(), x.size(0))
@@ -201,7 +201,7 @@ def sample(net, batch_size, device, model='realnvp', double_flow=False):
 
 
 def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples,
-        num_examples, model='realnvp', is_double_flow_iter=None):
+         num_examples, model='realnvp', is_double_flow_iter=None):
     global best_loss
     net.eval()
     loss_meter = util.AverageMeter()
