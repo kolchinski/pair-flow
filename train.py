@@ -222,7 +222,7 @@ def test(epoch, net, testloader, device, loss_fn, num_samples, num_epoch_samples
                     z, sldj = net(x)
                 elif model == 'pairednvp':
                     z, sldj = net(x, double_flow)
-                model_loss, jacobian_loss = loss_fn(z, sldj)
+                model_loss, jacobian_loss = loss_fn(z, sldj, double_flow)
                 print("Test losses: {} model loss; {} Jacobian clamp loss".format(model_loss, jacobian_loss))
                 loss = model_loss + jacobian_loss
                 loss_meter.update(loss.item(), x.size(0))
