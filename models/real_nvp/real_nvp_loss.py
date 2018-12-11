@@ -29,8 +29,9 @@ class RealNVPLoss(nn.Module):
             jacobian_loss = (max(sldj.mean(), self.lambda_max) - self.lambda_max) ** 2
         # For domain-to-domain translation
         elif double_flow is True:
+            print('double flow true')
             # TODO: Make this a parameter
-            double_lambda_max = 9000
+            double_lambda_max = 8000
             jacobian_loss = (max(sldj.mean(), double_lambda_max) - double_lambda_max) ** 2
         else:
             raise Exception(f'Double is neither boolen or none: {double_flow}')
