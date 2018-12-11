@@ -115,7 +115,7 @@ def main(args):
         best_loss = checkpoint['test_loss']
         start_epoch = checkpoint['epoch']
 
-    loss_fns = [RealNVPLoss(lambda_max=lm) for lm in [args.lambda_max, 2 * args.lambda_max]]
+    loss_fns = [RealNVPLoss(lambda_max=lm) for lm in [float('inf'), 2 * args.lambda_max]]
     param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
     optimizer = optim.Adam(param_groups, lr=args.lr)
 
