@@ -99,7 +99,7 @@ class D2DRealNVP(RealNVP):
             assert(z_split is None)
 
             # Undo logits
-            x = torch.sigmoid(x)
+            x = torch.sigmoid(y)
 
             # Shape should stay constant - hourglass architecture image-to-image
             assert x.shape == x2.shape, f'x and x2 have different shapes: {x.shape}, {x2.shape}'
