@@ -42,12 +42,6 @@ class PairedNVP(nn.Module):
             if double_flow:
                 x2 = input
                 x, g_sldj = self.d2d(x2)
-
-                # Don't backprop gradients from dF(G(x2))/dx2 into F, since z is independent of
-                # x2 when conditioned on x. I.e. we should only train the mapping F: z<->x on samples
-                # from x, not x2, and only train the mapping G: x<->x2 on samples from x2
-                x = x.detach()
-                g_sldj = g_sldj.detach()
             else:
                 x = input
                 g_sldj = None
