@@ -45,16 +45,16 @@ def main(args):
         = None, None, None, None, None, None
 
     if args.model == 'realnvp':
-        if args.dataset == 'MNIST':
+        if args.x_domain == 'MNIST':
             trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_mnist)
             testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_mnist)
 
-        elif args.dataset == 'SVHN':
+        elif args.x_domain == 'SVHN':
             trainset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_svhn)
             testset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_svhn)
 
         else:
-            raise Exception("Invalid dataset name")
+            raise Exception("Invalid dataset name for x_domain")
 
         if args.overfit:
             trainset = data.dataset.Subset(trainset, range(args.overfit_num_pts))
@@ -123,7 +123,7 @@ def main(args):
         best_loss = checkpoint['test_loss']
         start_epoch = checkpoint['epoch']
 
-    loss_fns = [RealNVPLoss(lambda_max=lm) for lm in [float('inf'), 2 * args.lambda_max]]
+    loss_fns = [RealNVPLoss(lambda_max=lm) for lm in [float('inf'), args.lambda_max]]
     param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
     optimizer = optim.Adam(param_groups, lr=args.lr)
 
@@ -141,7 +141,10 @@ def main(args):
 
             num_train_examples = min(len(trainloader_x.dataset), len(trainloader_x2.dataset))*2
             train(epoch, net, paired_train_loader, device, optimizer, loss_fns, args.max_grad_norm,
-                  num_train_examples, args.model, is_double_flow_iter=is_double_flow_iter)
+                  num_train_examples, args.model, is_double_flow_iter, args.indep_f_and_g)
+
+            # In overfit mode (small epochs) stop spending so much time on testing and sampling
+            #if args.overfit and epoch % 10 != 0: continue
 
             num_test_examples = min(len(testloader_x.dataset), len(testloader_x2.dataset))*2
             test(epoch, net, paired_test_loader, device, loss_fns, args.num_samples, args.num_epoch_samples,
@@ -151,7 +154,7 @@ def main(args):
 
 
 def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
-          num_examples, model='realnvp', is_double_flow_iter=None):
+          num_examples, model='realnvp', is_double_flow_iter=None, indep_f_and_g=False):
     print('\nEpoch: %d' % epoch)
     net.train()
     loss_meter = util.AverageMeter()
@@ -181,6 +184,16 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
             loss = model_loss + jacobian_loss
             loss_meter.update(loss.item(), x.size(0))
             loss.backward()
+
+            # Zero out gradients for F: z<>x when training on a point from x2, since
+            # z is independent of x2 when conditioned on x
+            if indep_f_and_g and model == 'pairednvp' and double_flow:
+                for param_name, p in net.named_parameters():
+                    if param_name[0:4] == 'rnvp':
+                        if p.grad is not None:
+                            p.grad.detach_()
+                            p.grad.zero_()
+
             util.clip_grad_norm(optimizer, max_grad_norm)
             optimizer.step()
 
@@ -272,14 +285,15 @@ if __name__ == '__main__':
 
     parser.add_argument('--overfit', action='store_true', help='Constrain number of train/test points?')
     parser.add_argument('--overfit_num_pts', default=128, type=int, help='Number of points to use for overfitting')
-    parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
+    #parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
     parser.add_argument('--num_scales', default=3, type=int, help='Number of scales for model architecture')
     parser.add_argument('--num_blocks', default=8, type=int, help='Number of residual blocks')
     parser.add_argument('--num_epoch_samples', default=1, type=int, help='Sample per num_epoch_samples epochs')
     parser.add_argument('--model', default='realnvp', type=str, help='Type of model (realnvp or pairednvp)')
     parser.add_argument('--lambda_max', default=float('inf'), type=float, help='Jacobian clamping threshold')
-    parser.add_argument('--x_domain', default='MNIST', type=str,
+    parser.add_argument('--x_domain', default='SVHN', type=str,
                         help='Identify x and x2 domains (Either MNIST or SVHN)')
+    parser.add_argument('--indep_f_and_g', action='store_true', help='Train F:z<>x on samples from x only, not x2')
 
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--benchmark', action='store_true', help='Turn on CUDNN benchmarking')

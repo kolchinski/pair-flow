@@ -45,6 +45,7 @@ class PairedNVP(nn.Module):
             else:
                 x = input
                 g_sldj = None
+
             z, sldj = self.rnvp(x, g_sldj=g_sldj)
 
             print('\n\n Sldj mean:', torch.mean(sldj))
