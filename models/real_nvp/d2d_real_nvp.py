@@ -50,7 +50,7 @@ class D2DRealNVP(RealNVP):
                        Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False)]
 
             in_channels = int(in_channels / 4)  # Account for the unsqueeze
-            mid_channels = int(mid_channels / 2)  # When unsqueezing, half the number of hidden-layer features in
+            mid_channels = int(mid_channels / 2)  # When unsqueezing, halve the number of hidden-layer features in
             # s and t
             layers += [Unsqueezing(),
                        Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
@@ -60,6 +60,7 @@ class D2DRealNVP(RealNVP):
         self.layers = nn.ModuleList(layers)
 
     def forward(self, x, reverse=False):
+        # Mapping x (domain adjacent to latent space z) to x2
         if reverse:
             if x.min() < 0 or x.max() > 1:
                 raise ValueError('Expected x in [0, 1], got x with min/max {}/{}'
@@ -74,12 +75,13 @@ class D2DRealNVP(RealNVP):
 
             assert(z_split is None)
 
-            # Undo logits
-            x2 = torch.sigmoid(y)
+            # Don't undo logits! Sample function expects logits, sigmoid later
+            x2 = y
             assert(x.shape == x2.shape)
 
             return x2, None
 
+        # Mapping x2 to x
         else:
             x2 = x
             # Expect inputs in [0, 1]
@@ -95,7 +97,7 @@ class D2DRealNVP(RealNVP):
             for layer in self.layers:
                 y, sldj, z_split = layer.forward(y, sldj, z_split)
 
-            # This model shouldn't have split layers => z should stay None
+            # This model shouldn't have split layers => z_split should stay None
             assert(z_split is None)
 
             # Undo logits
