@@ -41,6 +41,7 @@ class D2DRealNVP(RealNVP):
 
             in_channels *= 4  # Account for the squeeze
             mid_channels *= 2  # When squeezing, double the number of hidden-layer features in s and t
+
             layers += [Squeezing(),
                        Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
                        Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=True),
@@ -50,16 +51,20 @@ class D2DRealNVP(RealNVP):
             layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True)]
 
         for scale in range(num_scales):
+            layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False)]
+
             in_channels = int(in_channels / 4)  # Account for the unsqueeze
             mid_channels = int(mid_channels / 2)  # When unsqueezing, halve the number of hidden-layer features in
-            layers += [Unsqueezing()]
 
-        # Unsqueeze part
-        # for scale in range(num_scales):
-        #     in_channels = int(in_channels / 4)  # Account for the unsqueeze
-        #     mid_channels = int(mid_channels / 2)  # When unsqueezing, halve the number of hidden-layer features in
-        #     # s and t
-        #     layers += [Unsqueezing()]
+            layers += [Unsqueezing(),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=True),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False)]
+
+            # This only works when scale 2
+            layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True)]
 
         self.layers = nn.ModuleList(layers)
 
