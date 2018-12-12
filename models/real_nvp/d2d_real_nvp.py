@@ -30,39 +30,34 @@ class D2DRealNVP(RealNVP):
         # Get inner layers
         layers = []
 
+        # layers += [Squeezing(),
+        #            Unsqueezing()]
         # Squeeze part
-        layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False),
-                   Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True),
-                   Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False)]
+        for scale in range(num_scales):
+            layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False)]
 
-        in_channels *= 4  # Account for the squeeze
-        mid_channels *= 2  # When squeezing, double the number of hidden-layer features in s and t
+            in_channels *= 4  # Account for the squeeze
+            mid_channels *= 2  # When squeezing, double the number of hidden-layer features in s and t
+            layers += [Squeezing(),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=True),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False)]
 
-        layers += [Squeezing(),
-                   Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
-                   Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=True),
-                   Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False)]
+        # Unsqueeze part
+        for scale in range(num_scales):
+            layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False)]
 
-        in_channels = int(in_channels / 4)  # Account for the unsqueeze
-        mid_channels = int(mid_channels / 2)  # When unsqueezing, halve the number of hidden-layer features in
-
-        layers += [Unsqueezing(),
-                   Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
-                   Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=True),
-                   Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False)]
-        # # Unsqueeze part
-        # for scale in range(num_scales):
-        #     layers += [Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False),
-        #                Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=True),
-        #                Coupling(in_channels, mid_channels, num_blocks, MaskType.CHECKERBOARD, reverse_mask=False)]
-        #
-        #     in_channels = int(in_channels / 4)  # Account for the unsqueeze
-        #     mid_channels = int(mid_channels / 2)  # When unsqueezing, halve the number of hidden-layer features in
-        #     # s and t
-        #     layers += [Unsqueezing(),
-        #                Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
-        #                Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=True),
-        #                Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False)]
+            in_channels = int(in_channels / 4)  # Account for the unsqueeze
+            mid_channels = int(mid_channels / 2)  # When unsqueezing, halve the number of hidden-layer features in
+            # s and t
+            layers += [Unsqueezing(),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=True),
+                       Coupling(in_channels, mid_channels, num_blocks, MaskType.CHANNEL_WISE, reverse_mask=False)]
 
         self.layers = nn.ModuleList(layers)
 
