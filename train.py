@@ -166,6 +166,10 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
         for batch in loader:
             if is_double_flow_iter is not None:
                 (x, _), double_flow = batch
+
+                # Avoid running through x samples to map straight from z to x2
+                if double_flow is False:
+                    continue
             else:
                 x, _ = batch
                 double_flow = None
@@ -239,6 +243,10 @@ def test(epoch, net, testloader, device, loss_fns, num_samples, num_epoch_sample
             for batch in loader:
                 if is_double_flow_iter is not None:
                     (x, _), double_flow = batch
+
+                    # Avoid running through x samples to map straight from z to x_2
+                    if double_flow is False:
+                        continue
                 else:
                     x, _ = batch
                     double_flow = None
