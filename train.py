@@ -187,7 +187,12 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
             # Zero out gradients for F: z<>x when training on a point from x2, since
             # z is independent of x2 when conditioned on x
             if indep_f_and_g and model == 'pairednvp' and double_flow:
-                for p in net.module.rnvp.parameters():
+                if device == 'cuda':
+                    params = net.module.rnvp.parameters()
+                else:
+                    params = net.rnvp.parameters()
+
+                for p in params:
                     if p.grad is not None:
                         p.grad.detach_()
                         p.grad.zero_()
