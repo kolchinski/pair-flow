@@ -45,16 +45,16 @@ def main(args):
         = None, None, None, None, None, None
 
     if args.model == 'realnvp':
-        if args.dataset == 'MNIST':
+        if args.x_domain == 'MNIST':
             trainset = torchvision.datasets.MNIST(root='data', train=True, download=True, transform=transform_mnist)
             testset = torchvision.datasets.MNIST(root='data', train=False, download=True, transform=transform_mnist)
 
-        elif args.dataset == 'SVHN':
+        elif args.x_domain == 'SVHN':
             trainset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_svhn)
             testset = torchvision.datasets.SVHN(root='data', download=True, transform=transform_svhn)
 
         else:
-            raise Exception("Invalid dataset name")
+            raise Exception("Invalid dataset name for x_domain")
 
         if args.overfit:
             trainset = data.dataset.Subset(trainset, range(args.overfit_num_pts))
@@ -144,7 +144,7 @@ def main(args):
                   num_train_examples, args.model, is_double_flow_iter=is_double_flow_iter)
 
             # In overfit mode (small epochs) stop spending so much time on testing and sampling
-            if args.overfit and epoch % 10 != 0: continue
+            #if args.overfit and epoch % 10 != 0: continue
 
             num_test_examples = min(len(testloader_x.dataset), len(testloader_x2.dataset))*2
             test(epoch, net, paired_test_loader, device, loss_fns, args.num_samples, args.num_epoch_samples,
@@ -275,7 +275,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--overfit', action='store_true', help='Constrain number of train/test points?')
     parser.add_argument('--overfit_num_pts', default=128, type=int, help='Number of points to use for overfitting')
-    parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
+    #parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
     parser.add_argument('--num_scales', default=3, type=int, help='Number of scales for model architecture')
     parser.add_argument('--num_blocks', default=8, type=int, help='Number of residual blocks')
     parser.add_argument('--num_epoch_samples', default=1, type=int, help='Sample per num_epoch_samples epochs')
