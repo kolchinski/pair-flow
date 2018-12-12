@@ -74,8 +74,8 @@ class D2DRealNVP(RealNVP):
 
             assert(z_split is None)
 
-            # Undo logits
-            x2 = torch.sigmoid(y)
+            # Don't undo logits
+            x2 = y
             assert(x.shape == x2.shape)
 
             return x2, None
