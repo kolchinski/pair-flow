@@ -187,11 +187,10 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
             # Zero out gradients for F: z<>x when training on a point from x2, since
             # z is independent of x2 when conditioned on x
             if indep_f_and_g and model == 'pairednvp' and double_flow:
-                for param_name, p in net.named_parameters(recurse=True):
-                    if param_name[0:4] == 'rnvp':
-                        if p.grad is not None:
-                            p.grad.detach_()
-                            p.grad.zero_()
+                for p in net.rnvp.parameters():
+                    if p.grad is not None:
+                        p.grad.detach_()
+                        p.grad.zero_()
 
             util.clip_grad_norm(optimizer, max_grad_norm)
             optimizer.step()
