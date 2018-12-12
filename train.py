@@ -143,6 +143,9 @@ def main(args):
             train(epoch, net, paired_train_loader, device, optimizer, loss_fns, args.max_grad_norm,
                   num_train_examples, args.model, is_double_flow_iter=is_double_flow_iter)
 
+            # In overfit mode (small epochs) stop spending so much time on testing and sampling
+            if args.overfit and epoch % 10 != 0: continue
+
             num_test_examples = min(len(testloader_x.dataset), len(testloader_x2.dataset))*2
             test(epoch, net, paired_test_loader, device, loss_fns, args.num_samples, args.num_epoch_samples,
                  num_test_examples, args.model, is_double_flow_iter=is_double_flow_iter)
