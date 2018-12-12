@@ -141,7 +141,7 @@ def main(args):
 
             num_train_examples = min(len(trainloader_x.dataset), len(trainloader_x2.dataset))*2
             train(epoch, net, paired_train_loader, device, optimizer, loss_fns, args.max_grad_norm,
-                  num_train_examples, args.model, is_double_flow_iter=is_double_flow_iter)
+                  num_train_examples, args.model, is_double_flow_iter, args.indep_f_and_g)
 
             # In overfit mode (small epochs) stop spending so much time on testing and sampling
             #if args.overfit and epoch % 10 != 0: continue
@@ -154,7 +154,7 @@ def main(args):
 
 
 def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
-          num_examples, model='realnvp', is_double_flow_iter=None):
+          num_examples, model='realnvp', is_double_flow_iter=None, indep_f_and_g=False):
     print('\nEpoch: %d' % epoch)
     net.train()
     loss_meter = util.AverageMeter()
@@ -184,6 +184,16 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
             loss = model_loss + jacobian_loss
             loss_meter.update(loss.item(), x.size(0))
             loss.backward()
+
+            # Zero out gradients for F: z<>x when training on a point from x2, since
+            # z is independent of x2 when conditioned on x
+            if indep_f_and_g and model == 'pairednvp' and double_flow:
+                for param_name, p in net.named_parameters():
+                    if param_name[0:4] == 'rnvp':
+                        if p.grad is not None:
+                            p.grad.detach_()
+                            p.grad.zero_()
+
             util.clip_grad_norm(optimizer, max_grad_norm)
             optimizer.step()
 
@@ -283,6 +293,7 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_max', default=float('inf'), type=float, help='Jacobian clamping threshold')
     parser.add_argument('--x_domain', default='SVHN', type=str,
                         help='Identify x and x2 domains (Either MNIST or SVHN)')
+    parser.add_argument('--indep_f_and_g', action='store_true', help='Train F:z<>x on samples from x only, not x2')
 
     parser.add_argument('--batch_size', default=64, type=int, help='Batch size')
     parser.add_argument('--benchmark', action='store_true', help='Turn on CUDNN benchmarking')
