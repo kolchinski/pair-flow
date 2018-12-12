@@ -26,6 +26,8 @@ def main(args):
     start_epoch = 0
 
     # Note: No normalization applied, since RealNVP expects inputs in (0, 1).
+    # Make MNIST 3 channel greyscale to match the dimensionality of SVHN
+    # Also pad from 28x28 to 32x32
     transform_mnist = transforms.Compose([
         # transforms.RandomHorizontalFlip(),
         transforms.Pad(padding=2, padding_mode='edge'),
@@ -125,7 +127,6 @@ def main(args):
     param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
     optimizer = optim.Adam(param_groups, lr=args.lr)
 
-    # TODO: in paired NVP setting, make X and X2 examples alternate batch-by-batch instead of epoch-by-epoch
     for epoch in range(start_epoch, start_epoch + args.num_epochs):
         if args.model == 'realnvp':
             train(epoch, net, trainloader, device, optimizer, loss_fns, args.max_grad_norm, len(trainloader.dataset))
