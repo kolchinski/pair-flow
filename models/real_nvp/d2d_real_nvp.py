@@ -81,14 +81,13 @@ class D2DRealNVP(RealNVP):
             return x2, None
 
         else:
-            x2 = x
             # Expect inputs in [0, 1]
-            if x2.min() < 0 or x2.max() > 1:
+            if x.min() < 0 or x.max() > 1:
                 raise ValueError('Expected x2 in [0, 1], got x2 with min/max {}/{}'
-                                 .format(x2.min(), x2.max()))
+                                 .format(x.min(), x.max()))
 
             # Dequantize and convert to logits
-            y, sldj = self.pre_process(x2)
+            y, sldj = self.pre_process(x)
 
             # Apply forward flows
             z_split = None
@@ -98,10 +97,10 @@ class D2DRealNVP(RealNVP):
             # This model shouldn't have split layers => z should stay None
             assert(z_split is None)
 
-            # Undo logits
-            x = torch.sigmoid(x)
+            # Undo logits to return sample from second domain
+            x2 = torch.sigmoid(y)
 
             # Shape should stay constant - hourglass architecture image-to-image
-            assert x.shape == x2.shape, f'x and x2 have different shapes: {x.shape}, {x2.shape}'
+            assert x2.shape == x.shape, f'x and x2 have different shapes: {x.shape}, {x2.shape}'
 
-            return x, sldj
+            return x2, sldj

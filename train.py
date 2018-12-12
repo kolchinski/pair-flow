@@ -80,6 +80,7 @@ def main(args):
             trainset_x, testset_x = trainset_mnist, testset_mnist
             trainset_x2, testset_x2 = trainset_svhn, testset_svhn
         elif args.x_domain == 'SVHN':
+            print('x domain is SVHN')
             trainset_x2, testset_x2 = trainset_mnist, testset_mnist
             trainset_x, testset_x = trainset_svhn, testset_svhn
         else:

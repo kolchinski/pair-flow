@@ -47,7 +47,7 @@ class PairedNVP(nn.Module):
                 g_sldj = None
             z, sldj = self.rnvp(x, g_sldj=g_sldj)
 
-            print('\n\n Sldj mean:', torch.mean(sldj))
+            print('\n\nSldj mean:', torch.mean(sldj))
             print('double_flow:', double_flow)
             if g_sldj is not None:
                 print('G_sldj mean: ', torch.mean(g_sldj))
