@@ -39,7 +39,6 @@ def main(args):
         transforms.ToTensor()
     ])
 
-
     # init
     trainloader_x, trainloader_x2, testloader_x, testloader_x2, testloader, trainloader \
         = None, None, None, None, None, None
