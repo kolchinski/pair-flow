@@ -223,7 +223,7 @@ def sample(net, batch_size, device, model='realnvp'):
     elif model == 'pairednvp':
         x, _ = net(z, False, reverse=True)
         x2, _ = net(z, True, reverse=True)
-        x = torch.cat((x,x2),dim=0)
+        x = torch.cat((x, x2), dim=0)
 
     x = torch.sigmoid(x)
     return x
@@ -293,7 +293,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--overfit', action='store_true', help='Constrain number of train/test points?')
     parser.add_argument('--overfit_num_pts', default=128, type=int, help='Number of points to use for overfitting')
-    #parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
+    # parser.add_argument('--dataset', default='MNIST', type=str, help='Which to use: e.g. MNIST, SVHN')
     parser.add_argument('--num_scales', default=3, type=int, help='Number of scales for model architecture')
     parser.add_argument('--num_blocks', default=8, type=int, help='Number of residual blocks')
     parser.add_argument('--num_epoch_samples', default=1, type=int, help='Sample per num_epoch_samples epochs')
