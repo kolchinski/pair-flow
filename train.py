@@ -123,8 +123,12 @@ def main(args):
         start_epoch = checkpoint['epoch']
 
     loss_fns = [RealNVPLoss(lambda_max=lm) for lm in [float('inf'), args.lambda_max]]
-    param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
-    optimizer = optim.Adam(param_groups, lr=args.lr)
+    # param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
+    # optimizer = optim.Adam(param_groups, lr=args.lr)
+
+    optimizer_rnvp = optim.Adam(net.rnvp.parameters(), lr=args.lr)
+    optimizer_d2d = optim.Adam(net.d2d.parameters(), lr=args.lr)
+    optimizer = (optimizer_rnvp, optimizer_d2d)
 
     for epoch in range(start_epoch, start_epoch + args.num_epochs):
         if args.model == 'realnvp':
@@ -169,7 +173,9 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
                 x, _ = batch
                 double_flow = None
             x = x.to(device)
-            optimizer.zero_grad()
+            # optimizer.zero_grad()
+            for opt in optimizer:
+                opt.zero_grad()
             if model == 'realnvp':
                 z, sldj = net(x, reverse=False)
             elif model == 'pairednvp':
@@ -187,13 +193,12 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
             # Zero out gradients for F: z<>x when training on a point from x2, since
             # z is independent of x2 when conditioned on x
             if indep_f_and_g and model == 'pairednvp' and double_flow:
-                if device == 'cuda':
-                    net.module.rnvp.zero_grad()
-                else:
-                    net.rnvp.zero_grad()
+                optimizer[0].zero_grad()
 
-            util.clip_grad_norm(optimizer, max_grad_norm)
-            optimizer.step()
+            # util.clip_grad_norm(optimizer, max_grad_norm)
+            for opt in optimizer:
+                util.clip_grad_norm(opt, max_grad_norm)
+                opt.step()
 
             progress_bar.set_postfix(loss=loss_meter.avg,
                                      bpd=util.bits_per_dim(x, loss_meter.avg))
