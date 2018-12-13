@@ -188,14 +188,9 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
             # z is independent of x2 when conditioned on x
             if indep_f_and_g and model == 'pairednvp' and double_flow:
                 if device == 'cuda':
-                    params = net.module.rnvp.parameters()
+                    net.module.rnvp.zero_grad()
                 else:
-                    params = net.rnvp.parameters()
-
-                for p in params:
-                    if p.grad is not None:
-                        p.grad.detach_()
-                        p.grad.zero_()
+                    net.rnvp.zero_grad()
 
             util.clip_grad_norm(optimizer, max_grad_norm)
             optimizer.step()
