@@ -126,17 +126,15 @@ def main(args):
     # param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
     # optimizer = optim.Adam(param_groups, lr=args.lr)
 
-    if device == 'cuda':
-        optimizer_rnvp = optim.Adam(net.module.rnvp.parameters(), lr=args.lr)
-        optimizer_d2d = optim.Adam(net.module.d2d.parameters(), lr=args.lr)
-    else:
-        optimizer_rnvp = optim.Adam(net.rnvp.parameters(), lr=args.lr)
-        optimizer_d2d = optim.Adam(net.d2d.parameters(), lr=args.lr)
-    optimizer = (optimizer_rnvp, optimizer_d2d)
+    # TODO: We aren't doing the weight decay thing (see commented line above) - put this
+    # back in if it seems like it was helpful
+    optimizer_rnvp = optim.Adam(net._modules['rnvp'].parameters(), lr=args.lr)
+    optimizer_d2d = optim.Adam(net._modules['d2d'].parameters(), lr=args.lr)
+    optimizers = {'rnvp' : optimizer_rnvp, 'd2d' : optimizer_d2d}
 
     for epoch in range(start_epoch, start_epoch + args.num_epochs):
         if args.model == 'realnvp':
-            train(epoch, net, trainloader, device, optimizer, loss_fns, args.max_grad_norm, len(trainloader.dataset))
+            train(epoch, net, trainloader, device, optimizers, loss_fns, args.max_grad_norm, len(trainloader.dataset))
             test(epoch, net, testloader, device, loss_fns, args.num_samples, args.num_epoch_samples,
                  len(testloader.dataset))
         elif args.model == 'pairednvp':
@@ -147,7 +145,7 @@ def main(args):
             is_double_flow_iter = alternate(iter(lambda: False, 2), iter(lambda: True, 2))
 
             num_train_examples = min(len(trainloader_x.dataset), len(trainloader_x2.dataset))*2
-            train(epoch, net, paired_train_loader, device, optimizer, loss_fns, args.max_grad_norm,
+            train(epoch, net, paired_train_loader, device, optimizers, loss_fns, args.max_grad_norm,
                   num_train_examples, args.model, is_double_flow_iter, args.indep_f_and_g)
 
             # In overfit mode (small epochs) stop spending so much time on testing and sampling
@@ -160,7 +158,7 @@ def main(args):
         else: raise Exception('Invalid model name')
 
 
-def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
+def train(epoch, net, trainloader, device, optimizers, loss_fns, max_grad_norm,
           num_examples, model='realnvp', is_double_flow_iter=None, indep_f_and_g=False):
     print('\nEpoch: %d' % epoch)
     net.train()
@@ -177,13 +175,14 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
                 x, _ = batch
                 double_flow = None
             x = x.to(device)
-            # optimizer.zero_grad()
-            for opt in optimizer:
+
+            for opt in optimizers.values():
                 opt.zero_grad()
             if model == 'realnvp':
                 z, sldj = net(x, reverse=False)
             elif model == 'pairednvp':
                 z, sldj = net(x, double_flow, reverse=False)
+            else: raise Exception("invalid model")
 
             single_loss_fn, double_loss_fn = loss_fns
             loss_fn = double_loss_fn if double_flow else single_loss_fn
@@ -194,15 +193,19 @@ def train(epoch, net, trainloader, device, optimizer, loss_fns, max_grad_norm,
             loss_meter.update(loss.item(), x.size(0))
             loss.backward()
 
-            # Zero out gradients for F: z<>x when training on a point from x2, since
-            # z is independent of x2 when conditioned on x
-            if indep_f_and_g and model == 'pairednvp' and double_flow:
-                optimizer[0].zero_grad()
-
-            # util.clip_grad_norm(optimizer, max_grad_norm)
-            for opt in optimizer:
+            def step_opt(opt):
                 util.clip_grad_norm(opt, max_grad_norm)
                 opt.step()
+
+            if model == 'realnvp':
+                step_opt(optimizers['rnvp'])
+            elif model == 'pairednvp':
+                if not double_flow:
+                    step_opt(optimizers['rnvp'])
+                else:
+                    step_opt(optimizers['d2d'])
+                    if not indep_f_and_g:
+                        step_opt(optimizers['rnvp'])
 
             progress_bar.set_postfix(loss=loss_meter.avg,
                                      bpd=util.bits_per_dim(x, loss_meter.avg))
