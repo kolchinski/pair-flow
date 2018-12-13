@@ -32,7 +32,6 @@ class PairedNVP(nn.Module):
             x, _ = self.rnvp(z, reverse=True)
 
             if double_flow:
-                x = torch.sigmoid(x)
                 x2, _ = self.d2d(x, reverse=True)
                 return x2, None
             else:
@@ -42,6 +41,9 @@ class PairedNVP(nn.Module):
             if double_flow:
                 x2 = input
                 x, g_sldj = self.d2d(x2)
+
+                # Even if g_sldj is 0, it can't be None here or the rnvp call will fail
+                assert(g_sldj is not None)
             else:
                 x = input
                 g_sldj = None

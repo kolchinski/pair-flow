@@ -55,10 +55,10 @@ class RealNVP(nn.Module):
         self.layers = nn.ModuleList(layers)
 
     # g_sldj - for paired setting only, pass in an initial sldj value
-    def forward(self, x, reverse=False, g_sldj=None):
+    def forward(self, input, reverse=False, g_sldj=None):
         if reverse:
             # Reshape z to match dimensions of final latent space
-            z = x
+            z = input
             if z.size(2) != z.size(3):
                 raise ValueError('Expected z with height = width, got shape {}'.format(z.size()))
             while z.size(1) < self.z_channels:
@@ -73,16 +73,20 @@ class RealNVP(nn.Module):
 
             return x, None
         else:
-            # Expect inputs in [0, 1]
-            if x.min() < 0 or x.max() > 1:
-                raise ValueError('Expected x in [0, 1], got x with min/max {}/{}'
-                                 .format(x.min(), x.max()))
+            if g_sldj is None:
+                # If x is coming in directly as an image, preprocess it
+                x = input
+                # Expect inputs in [0, 1]
+                if x.min() < 0 or x.max() > 1:
+                    raise ValueError('Expected x in [0, 1], got x with min/max {}/{}'
+                                     .format(x.min(), x.max()))
 
-            # Dequantize and convert to logits
-            y, sldj = self.pre_process(x)
-
-            # Try this
-            if g_sldj is not None:
+                # Dequantize and convert to logits
+                y, sldj = self.pre_process(x)
+            else:
+                # If we do have g_sldj, that means the input is logits from d2d
+                # and we have an sldj value to start with
+                y = input
                 sldj = g_sldj
 
             # Apply forward flows

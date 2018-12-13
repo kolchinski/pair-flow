@@ -68,14 +68,11 @@ class D2DRealNVP(RealNVP):
 
         self.layers = nn.ModuleList(layers)
 
-    def forward(self, x, reverse=False):
+    def forward(self, input, reverse=False):
         # Mapping x (domain adjacent to latent space z) to x2
         if reverse:
-            if x.min() < 0 or x.max() > 1:
-                raise ValueError('Expected x in [0, 1], got x with min/max {}/{}'
-                                 .format(x.min(), x.max()))
-
-            y, sldj = self.pre_process(x)
+            # Expect logit inputs (output from reverse Real NVP)
+            y = input
 
             # Apply inverse flows
             z_split = None
@@ -86,13 +83,13 @@ class D2DRealNVP(RealNVP):
 
             # Don't undo logits! Sample function expects logits, sigmoid later
             x2 = y
-            assert(x.shape == x2.shape)
+            assert(input.shape == x2.shape)
 
             return x2, None
 
         # Mapping x2 to x
         else:
-            x2 = x
+            x2 = input
             # Expect inputs in [0, 1]
             if x2.min() < 0 or x2.max() > 1:
                 raise ValueError('Expected x2 in [0, 1], got x2 with min/max {}/{}'
@@ -109,8 +106,8 @@ class D2DRealNVP(RealNVP):
             # This model shouldn't have split layers => z_split should stay None
             assert(z_split is None)
 
-            # Undo logits
-            x = torch.sigmoid(y)
+            # Keep logits - sigmoid them later to get the image
+            x = y
 
             # Shape should stay constant - hourglass architecture image-to-image
             assert x.shape == x2.shape, f'x and x2 have different shapes: {x.shape}, {x2.shape}'
