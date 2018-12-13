@@ -126,8 +126,12 @@ def main(args):
     # param_groups = util.get_param_groups(net, args.weight_decay, norm_suffix='weight_g')
     # optimizer = optim.Adam(param_groups, lr=args.lr)
 
-    optimizer_rnvp = optim.Adam(net.rnvp.parameters(), lr=args.lr)
-    optimizer_d2d = optim.Adam(net.d2d.parameters(), lr=args.lr)
+    if device == 'cuda':
+        optimizer_rnvp = optim.Adam(net.modules.rnvp.parameters(), lr=args.lr)
+        optimizer_d2d = optim.Adam(net.modules.d2d.parameters(), lr=args.lr)
+    else:
+        optimizer_rnvp = optim.Adam(net.rnvp.parameters(), lr=args.lr)
+        optimizer_d2d = optim.Adam(net.d2d.parameters(), lr=args.lr)
     optimizer = (optimizer_rnvp, optimizer_d2d)
 
     for epoch in range(start_epoch, start_epoch + args.num_epochs):
