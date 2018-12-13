@@ -129,13 +129,18 @@ def main(args):
     # TODO: We aren't doing the weight decay thing (see commented line above) - put this
     # back in if it seems like it was helpful
 
-    if device == 'cuda':
-        optimizer_rnvp = optim.Adam(net.module.rnvp.parameters(), lr=args.lr)
-        optimizer_d2d = optim.Adam(net.module.d2d.parameters(), lr=args.lr)
-    else:
-        optimizer_rnvp = optim.Adam(net.rnvp.parameters(), lr=args.lr)
-        optimizer_d2d = optim.Adam(net.d2d.parameters(), lr=args.lr)
-    optimizers = {'rnvp' : optimizer_rnvp, 'd2d' : optimizer_d2d}
+    if args.model == 'pairednvp':
+        if device == 'cuda':
+            optimizer_rnvp = optim.Adam(net.module.rnvp.parameters(), lr=args.lr)
+            optimizer_d2d = optim.Adam(net.module.d2d.parameters(), lr=args.lr)
+        else:
+            optimizer_rnvp = optim.Adam(net.rnvp.parameters(), lr=args.lr)
+            optimizer_d2d = optim.Adam(net.d2d.parameters(), lr=args.lr)
+        optimizers = {'rnvp' : optimizer_rnvp, 'd2d' : optimizer_d2d}
+    elif args.model == 'realnvp':
+        optimizer_rnvp = optim.Adam(net.parameters(), lr=args.lr)
+        optimizers = {'rnvp' : optimizer_rnvp}
+
 
     for epoch in range(start_epoch, start_epoch + args.num_epochs):
         if args.model == 'realnvp':
